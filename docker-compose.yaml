@@ -1,0 +1,59 @@
+version: '3'
+
+services:
+  node-1:
+    container_name: node-1
+    build: 
+      dockerfile: dockerfile-node
+    command: sh -c "python -u node.py 1" 
+    ports:
+      - 8001:80
+    networks:
+      - node-network
+
+  node-2:
+    container_name: node-2
+    build:
+      dockerfile: dockerfile-node
+    command: sh -c "python -u node.py 2"
+    ports:
+      - 8002:80
+    networks:
+      - node-network
+
+  node-3:
+    container_name: node-3  
+    build:
+      dockerfile: dockerfile-node
+    command: sh -c "python -u node.py 3"
+    ports:
+      - 8003:80
+    networks:
+      - node-network
+
+  node-4:
+    container_name: node-4
+    build:
+      dockerfile: dockerfile-node
+    command: sh -c "python -u node.py 4" 
+    ports:
+      - 8004:80
+    networks:
+      - node-network
+
+  server:
+    container_name: server
+    build:
+      dockerfile: dockerfile-server
+    command: sh -c "python -u server.py"
+    volumes:
+      - ./files:/app/files
+    ports:
+      - 8005:80
+    networks:
+      - node-network
+
+networks:
+  node-network:
+    driver:
+      bridge
