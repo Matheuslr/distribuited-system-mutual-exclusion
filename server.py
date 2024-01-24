@@ -4,7 +4,10 @@ import os
 # Define o caminho do arquivo e da pasta
 
 
-def create_file(path: str):
+def create_file(path: str, folder):
+  if not os.path.exists(folder):
+    os.makedirs(folder)
+
   with open(path, 'w') as file:
       pass  
 
@@ -17,7 +20,7 @@ def server(host = 'server', port=80):
     folder = "files"
     file = "logs.txt"
     path = os.path.join(folder, file)
-    create_file(path)
+    create_file(path, folder)
     data_payload = 2048 #The maximum amount of data to be received at once
     # Create a TCP socket
     sock = socket.socket(socket.AF_INET,  socket.SOCK_STREAM)
