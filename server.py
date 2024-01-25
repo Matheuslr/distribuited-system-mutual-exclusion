@@ -3,7 +3,6 @@ import os
 import logging
 
 logging.basicConfig(level=logging.INFO)
-# Define o caminho do arquivo e da pasta
 
 
 class Server:
