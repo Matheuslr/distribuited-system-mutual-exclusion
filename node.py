@@ -13,30 +13,33 @@ logging.basicConfig(
     format='[%(asctime)s] [%(levelname)s] [%(threadName)s] %(message)s'
 )
 
-
+socket.setdefaulttimeout(5)
 class Node:
     def __init__(self, server_host: str = 'server', server_port: int = 80) -> None:
-        # self._device_id = 1
+
         self._device_id = int(sys.argv[1])
+        # self._device_id = 2
         self._hostname = socket.gethostname()
         self._IPAddr = socket.gethostbyname(self._hostname)
         self.server_host = server_host
         self.server_port = server_port
-        # self.server_host = 'localhost'
-        # self.server_port = 8081
+
         self.server_address = (self.server_host, self.server_port)
 
         self.node_election_id = 2
-        # self.node_election_host = self._IPAddr 
-        # self.node_election_port = 8082
+   
+        # self.node_election_host = "localhost"
+        # self.node_election_port = 8081
         self.node_election_host = f"node-{self.node_election_id}"
         self.node_election_port = 80
         self.node_election_address = (self.node_election_host, self.node_election_port)
         self.node_neighbors = []
 
         self.is_elected = False
+
         self.message_queue = queue.Queue()
 
+    
         self._set_elected_node()
 
     def _set_elected_node(self):
@@ -47,8 +50,12 @@ class Node:
     def process_queue(self):
         while True:
             data = self.message_queue.get()
-            self.send_message(data.decode('utf-8'))
-            
+            self.send_message(data)
+    def elect_new_leader(self):
+        logging.info("Setting new election")
+    def _data_format(self,data):
+        message_splited = data.split('>')
+        return message_splited[0].replace('<','').replace('>', '').replace(' ', ''), message_splited[1]
     def init_leader_server(self):
 
         data_payload = 2048  # The maximum amount of data to be received at once
@@ -66,8 +73,10 @@ class Node:
             logging.info("Waiting to receive message from client")
             client, _ = sock.accept()
             data = client.recv(data_payload)
-            if data:
-                self.message_queue.put(data)
+            decoded_message = data.decode('utf-8')
+            message_type, message = self._data_format(decoded_message)
+            if data and message_type == 'SAVE':
+                self.message_queue.put(message)
                 client.send(data)
                 client.close()
 
@@ -77,6 +86,7 @@ class Node:
         logging.info("starting send message process")
         # Create a TCP/IP socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5.0)
         # Connect the socket to the server
         if self.is_elected:
             sock.connect(self.server_address)
@@ -89,7 +99,7 @@ class Node:
             if data:
                 message = data
             else:
-                message = f"device_id = {self._device_id} | hostname = {self._hostname} | ip = {self._IPAddr} | timestamp = {datetime.now()}"
+                message = f"<SAVE>device_id = {self._device_id} | hostname = {self._hostname} | ip = {self._IPAddr} | timestamp = {datetime.now()}"
             logging.info(f"Sending {message}")
             sock.sendall(message.encode('utf-8'))
             # Look for the response
@@ -99,7 +109,7 @@ class Node:
                 data = sock.recv(16)
                 amount_received += len(data)
         except socket.error as err:
-            logging.error(f"Socket error: {str(err)}")
+            logging.error(f"Timeout: {str(err)}")
         except Exception as err:
             logging.error(f"Other exception: {str(err)}")
         finally:
@@ -108,11 +118,11 @@ class Node:
             sleep(randrange(1, 5))
 
 
+# node = Node('localhost', 8000)
 node = Node()
 for _ in range(100):
     while True:
         try:
-            logging.info(node.is_elected)
             if node.is_elected:
 
                 logging.info("starting processing thread")
@@ -134,5 +144,6 @@ for _ in range(100):
         except Exception as err:
             logging.error(err)
             logging.info(f"retrying node {node._device_id}")
+            node.elect_new_leader()
             continue
         break

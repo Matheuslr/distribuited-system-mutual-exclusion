@@ -55,5 +55,6 @@ class Server:
                 client.close()
 
 
+# server = Server('localhost', 8000)
 server = Server()
 server.init_server()
