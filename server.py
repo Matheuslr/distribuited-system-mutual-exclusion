@@ -1,45 +1,60 @@
 import socket
 import os
+import logging
 
+logging.basicConfig(level=logging.INFO)
 # Define o caminho do arquivo e da pasta
 
 
-def create_file(path: str, folder):
-  if not os.path.exists(folder):
-    os.makedirs(folder)
+class Server:
+    def __init__(self, server_host: str = 'server', server_port: str = 80) -> None:
+        self._hostname = socket.gethostname()
+        self._IPAddr = socket.gethostbyname(self._hostname)
 
-  with open(path, 'w') as file:
-      pass  
+        self.server_host = server_host
+        self.server_port = server_port
+        self.server_address = (self.server_host, self.server_port)
 
-def write_on_logs(path: str, data: str):
-    with open(path, '+a') as file:
-      file.write(f"{data.decode('utf-8')}\n")
-    print('data saved on log file')
+        self.folder = "files"
+        self.file = "logs.txt"
+        self.path = os.path.join(self.folder, self.file)
 
-def server(host = 'server', port=80):
-    folder = "files"
-    file = "logs.txt"
-    path = os.path.join(folder, file)
-    create_file(path, folder)
-    data_payload = 2048 #The maximum amount of data to be received at once
-    # Create a TCP socket
-    sock = socket.socket(socket.AF_INET,  socket.SOCK_STREAM)
-    # Enable reuse address/port 
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    # Bind the socket to the port
-    server_address = (host, port)
-    print ("Starting up echo server  on %s port %s" % server_address)
-    sock.bind(server_address)
-    # Listen to clients, argument specifies the max no. of queued connections
-    sock.listen(5) 
-    while True: 
-        print ("Waiting to receive message from client")
-        client, address = sock.accept() 
-        data = client.recv(data_payload) 
-        if data:
-            write_on_logs(path, data)
-            client.send(data)
-            print (f"sent {data} bytes back to {address}" )
-            # end connection
-            client.close()  
-server()
+        self._create_file()
+
+    def _create_file(self):
+        if not os.path.exists(self.folder):
+            os.makedirs(self.folder)
+
+        with open(self.path, 'w') as _:
+            pass
+
+    def _write_on_logs(self, data):
+        with open(self.path, '+a') as file:
+            file.write(f"{data.decode('utf-8')}\n")
+        logging.info('data saved on log file')
+
+    def init_server(self):
+
+        data_payload = 2048  # The maximum amount of data to be received at once
+        # Create a TCP socket
+        sock = socket.socket(socket.AF_INET,  socket.SOCK_STREAM)
+        # Enable reuse address/port
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # Bind the socket to the port
+        logging.info(
+            f"Starting up echo server  on {self._IPAddr} port {self.server_port}")
+        sock.bind(self.server_address)
+        # Listen to clients, argument specifies the max no. of queued connections
+        sock.listen(5)
+        while True:
+            logging.info("Waiting to receive message from client")
+            client, _ = sock.accept()
+            data = client.recv(data_payload)
+            if data:
+                self._write_on_logs(data)
+                client.send(data)
+                client.close()
+
+
+server = Server()
+server.init_server()
