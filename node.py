@@ -14,6 +14,8 @@ logging.basicConfig(
 )
 
 socket.setdefaulttimeout(5)
+
+
 class Node:
     def __init__(self, server_host: str = 'server', server_port: int = 80) -> None:
 
@@ -23,23 +25,24 @@ class Node:
         self._IPAddr = socket.gethostbyname(self._hostname)
         self.server_host = server_host
         self.server_port = server_port
-
+        self._message_quantity = 100
         self.server_address = (self.server_host, self.server_port)
 
         self.node_election_id = 2
-   
+
         # self.node_election_host = "localhost"
         # self.node_election_port = 8081
         self.node_election_host = f"node-{self.node_election_id}"
         self.node_election_port = 80
-        self.node_election_address = (self.node_election_host, self.node_election_port)
+        self.node_election_address = (
+            self.node_election_host, self.node_election_port)
         self.node_neighbors = []
 
         self.is_elected = False
+        self.election_ring = []
 
         self.message_queue = queue.Queue()
 
-    
         self._set_elected_node()
 
     def _set_elected_node(self):
@@ -50,13 +53,16 @@ class Node:
     def process_queue(self):
         while True:
             data = self.message_queue.get()
-            self.send_message(data)
+            self._send_message(data)
+
     def elect_new_leader(self):
-        logging.info("Setting new election")
-    def _data_format(self,data):
+        pass
+
+    def _data_format(self, data):
         message_splited = data.split('>')
-        return message_splited[0].replace('<','').replace('>', '').replace(' ', ''), message_splited[1]
-    def init_leader_server(self):
+        return message_splited[0].replace('<', '').replace('>', '').replace(' ', ''), message_splited[1]
+
+    def init_node_server(self):
 
         data_payload = 2048  # The maximum amount of data to be received at once
         # Create a TCP socket
@@ -68,7 +74,7 @@ class Node:
             f"Starting up echo server  on {self._IPAddr} port {self.server_port}")
         sock.bind(self.node_election_address)
         # Listen to clients, argument specifies the max no. of queued connections
-        sock.listen(5)
+        sock.listen(1)
         while self.is_elected:
             logging.info("Waiting to receive message from client")
             client, _ = sock.accept()
@@ -77,11 +83,13 @@ class Node:
             message_type, message = self._data_format(decoded_message)
             if data and message_type == 'SAVE':
                 self.message_queue.put(message)
+                sleep(5)
                 client.send(data)
                 client.close()
+            if data and message_type == 'ELECTION':
+                pass
 
-
-    def send_message(self, data = None):
+    def _send_message(self, data=None):
 
         logging.info("starting send message process")
         # Create a TCP/IP socket
@@ -92,7 +100,7 @@ class Node:
             sock.connect(self.server_address)
         else:
             sock.connect(self.node_election_address)
-            
+
         # Send data
         try:
             # Send data
@@ -115,35 +123,35 @@ class Node:
         finally:
             logging.info("Closing connection to the server")
             sock.close()
+
+    def message_spam(self):
+        for _ in range(self._message_quantity):
+            self._send_message()
             sleep(randrange(1, 5))
 
 
 # node = Node('localhost', 8000)
 node = Node()
-for _ in range(100):
-    while True:
-        try:
-            if node.is_elected:
+while True:
+    try:
+        if node.is_elected:
 
-                logging.info("starting processing thread")
-                processing_thread = threading.Thread(target=node.process_queue)
-                processing_thread.daemon = True
+            logging.info("starting processing thread")
+            processing_thread = threading.Thread(target=node.process_queue)
+            processing_thread.daemon = True
 
-                logging.info("starting server thread")
-                server_thread = threading.Thread(target=node.init_leader_server)
-                server_thread.daemon = True
+            logging.info("starting server thread")
+            server_thread = threading.Thread(target=node.init_node_server)
+            server_thread.daemon = True
 
-                processing_thread.start()
-                server_thread.start()
+            processing_thread.start()
+            server_thread.start()
 
-                processing_thread.join()
-                server_thread.join()
-
-            else:
-                node.send_message()
-        except Exception as err:
-            logging.error(err)
-            logging.info(f"retrying node {node._device_id}")
-            node.elect_new_leader()
-            continue
-        break
+            processing_thread.join()
+            server_thread.join()
+        else:
+            node.message_spam()
+    except Exception as err:
+        logging.error(err)
+        logging.info(f"retrying node {node._device_id}")
+        node.elect_new_leader()
