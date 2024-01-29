@@ -2,21 +2,22 @@ import socket
 import os
 import logging
 
+from typing import BinaryIO
 logging.basicConfig(level=logging.INFO)
 
 
 class Server:
     def __init__(self, server_host: str = 'server', server_port: str = 80) -> None:
-        self._hostname = socket.gethostname()
-        self._IPAddr = socket.gethostbyname(self._hostname)
+        self._hostname: str = socket.gethostname()
+        self._IPAddr: str = socket.gethostbyname(self._hostname)
 
-        self.server_host = server_host
-        self.server_port = server_port
-        self.server_address = (self.server_host, self.server_port)
+        self.server_host: str = server_host
+        self.server_port: int = server_port
+        self.server_address: str = (self.server_host, self.server_port)
 
-        self.folder = "files"
-        self.file = "logs.txt"
-        self.path = os.path.join(self.folder, self.file)
+        self.folder: str = "files"
+        self.file: str = "logs.txt"
+        self.path: str = os.path.join(self.folder, self.file)
 
         self._create_file()
 
@@ -27,7 +28,7 @@ class Server:
         with open(self.path, 'w') as _:
             pass
 
-    def _write_on_logs(self, data):
+    def _write_on_logs(self, data:BinaryIO):
         with open(self.path, '+a') as file:
             file.write(f"{data.decode('utf-8')}\n")
         logging.info('data saved on log file')
