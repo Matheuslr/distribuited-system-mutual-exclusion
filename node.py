@@ -21,31 +21,31 @@ socket.setdefaulttimeout(5)
 class Node:
     def __init__(self, server_host: str = 'server', server_port: int = 80) -> None:
 
-        self._device_id:int = int(sys.argv[1])
-        self.node_list:list = [int(x) for x in sys.argv[2].split(",")]
+        self._device_id: int = int(sys.argv[1])
+        self.node_list: list = [int(x) for x in sys.argv[2].split(",")]
 
         # self._device_id = 2
-        self._hostname:str = socket.gethostname()
-        self._IPAddr:str = socket.gethostbyname(self._hostname)
-        self.server_host:str = server_host
-        self.server_port:int = server_port
-        self._message_quantity:int = 100
-        self.server_address:str = (self.server_host, self.server_port)
+        self._hostname: str = socket.gethostname()
+        self._IPAddr: str = socket.gethostbyname(self._hostname)
+        self.server_host: str = server_host
+        self.server_port: int = server_port
+        self._message_quantity: int = 100
+        self.server_address: str = (self.server_host, self.server_port)
 
-        self.node_election_id:int = 2
+        self.node_election_id: int = 2
 
         # self.node_election_host = "localhost"
         # self.node_election_port = 8081
-        self.node_election_host:str = f"node-{self.node_election_id}"
-        self.node_election_port:int = 80
-        self.node_election_address:str = (
+        self.node_election_host: str = f"node-{self.node_election_id}"
+        self.node_election_port: int = 80
+        self.node_election_address: str = (
             self.node_election_host, self.node_election_port)
 
-        self.is_elected:bool = False
-        self.election_ring:list = []
+        self.is_elected: bool = False
+        self.election_ring: list = []
         self.neighbor_count = 0
 
-        self.message_queue:queue = queue.Queue()
+        self.message_queue: queue = queue.Queue()
 
         self._set_elected_node()
 
@@ -61,13 +61,24 @@ class Node:
 
     def elect_new_leader(self):
         logging.info("electing new leader")
-        custom_addr = (f"node-{self.node_list[self.neighbor_count]}", self.node_election_port)
+        custom_addr = (
+            f"node-{self.node_list[self.neighbor_count]}", self.node_election_port)
         message = f"<ELECTION>{self._device_id}"
         self._send_message(custom_addr=custom_addr, message=message)
-        if self.neighbor_count < len(self.node_list):
-            self.neighbor_count +=1
 
-    def _data_format(self, data:str):
+    def do_election(self, message):
+        logging.info("Ongoing election")
+        voting_list = [int(x) for x in message.split(",")]
+        if self.node_election_id not in voting_list:
+            missing_nodes = list(set(self.node_list) - set(voting_list))
+            next_node = missing_nodes[0]
+            sending_message = f"<ELECTION>{message},{self._device_id}"
+            custom_addr = (
+                f"node-{next_node}", self.node_election_port)
+            self._send_message(custom_addr=custom_addr,
+                               message=sending_message)
+
+    def _data_format(self, data: str):
         message_splited = data.split('>')
         return message_splited[0].replace('<', '').replace('>', '').replace(' ', ''), message_splited[1]
 
@@ -96,9 +107,10 @@ class Node:
                 client.close()
             if data and message_type == 'ELECTION':
                 if self._device_id not in message:
-                    pass
+                    self.do_election(message=message)
+                    sleep(5)
 
-    def _send_message(self,custom_addr:Tuple[str,int], message:str ):
+    def _send_message(self, custom_addr: Tuple[str, int], message: str):
 
         logging.info("starting send message process")
         # Create a TCP/IP socket
@@ -138,7 +150,7 @@ class Node:
             sleep(randrange(1, 5))
 
 
-node = Node('localhost', 8000)
+# node = Node('localhost', 8000)
 node = Node()
 logging.info("starting processing thread")
 processing_thread = threading.Thread(target=node.process_queue)
