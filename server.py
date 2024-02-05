@@ -2,7 +2,8 @@ import socket
 import os
 import logging
 
-from typing import BinaryIO
+from typing import BinaryIO, Tuple
+
 logging.basicConfig(level=logging.INFO)
 
 
@@ -13,7 +14,7 @@ class Server:
 
         self.server_host: str = server_host
         self.server_port: int = server_port
-        self.server_address: str = (self.server_host, self.server_port)
+        self.server_address: Tuple(str,int) = (self.server_host, self.server_port)
 
         self.folder: str = "files"
         self.file: str = "logs.txt"

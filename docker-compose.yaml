@@ -5,6 +5,8 @@ services:
     container_name: node-1
     build: 
       dockerfile: dockerfile-node
+    # depends_on: 
+    #   - node-4
     command: sh -c "python -u node.py 1 2,3,4,1" 
     ports:
       - 8001:80
@@ -15,6 +17,8 @@ services:
     container_name: node-2
     build:
       dockerfile: dockerfile-node
+    # depends_on: 
+    #   - node-4
     command: sh -c "python -u node.py 2 3,4,1,2"
     ports:
       - 8002:80
@@ -25,6 +29,8 @@ services:
     container_name: node-3  
     build:
       dockerfile: dockerfile-node
+    # depends_on: 
+    #   - node-4
     command: sh -c "python -u node.py 3 4,1,2,3"
     ports:
       - 8003:80
@@ -35,6 +41,8 @@ services:
     container_name: node-4
     build:
       dockerfile: dockerfile-node
+    # depends_on: 
+    #   - server
     command: sh -c "python -u node.py 4 1,2,3,4"
     ports:
       - 8004:80
