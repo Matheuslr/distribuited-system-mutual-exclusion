@@ -22,30 +22,36 @@ class Server:
 
         self._create_file()
 
-    def _create_file(self):
+    def _create_file(self) -> None:
+        """
+        create a folder named files and a file named logs.txt to set logs
+        """
         if not os.path.exists(self.folder):
             os.makedirs(self.folder)
 
         with open(self.path, 'w') as _:
             pass
 
-    def _write_on_logs(self, data:BinaryIO):
+    def _write_on_logs(self, data:BinaryIO) -> None:
+        """Write on logs.txt 
+        Args:
+            data (BinaryIO): message from nodes
+        """
         with open(self.path, '+a') as file:
             file.write(f"{data.decode('utf-8')}\n")
         logging.info('data saved on log file')
 
-    def init_server(self):
+    def init_server(self) -> None:
+        """
+            Init node server
+        """
 
-        data_payload = 2048  # The maximum amount of data to be received at once
-        # Create a TCP socket
+        data_payload = 2048  
         sock = socket.socket(socket.AF_INET,  socket.SOCK_STREAM)
-        # Enable reuse address/port
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        # Bind the socket to the port
         logging.info(
             f"Starting up echo server  on {self._IPAddr} port {self.server_port}")
         sock.bind(self.server_address)
-        # Listen to clients, argument specifies the max no. of queued connections
         sock.listen(5)
         while True:
             logging.info("Waiting to receive message from client")
@@ -56,7 +62,5 @@ class Server:
                 client.send(data)
                 client.close()
 
-
-# server = Server('localhost', 8000)
-server = Server()
+server = Server() 
 server.init_server()

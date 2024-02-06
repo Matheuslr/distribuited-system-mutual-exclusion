@@ -27,7 +27,7 @@ class Node:
         self._IPAddr: str = socket.gethostbyname(self._hostname)
         self.server_host: str = server_host
         self.server_port: int = server_port
-        self._message_quantity: int = 100
+        self._message_quantity: int = 1000
         self.server_address: Tuple(str,int) = (self.server_host, self.server_port)
 
         self.node_election_id: int = 4
@@ -47,12 +47,21 @@ class Node:
 
         self._set_elected_node()
 
-    def _set_elected_node(self):
+    def _set_elected_node(self) -> None:
+        """
+            set a initial elected node
+        """
         if self.node_election_id == self._device_id:
             self.is_elected = True
         self.node_election_host = f"node-{self.node_election_id}"
 
-    def _promote_node(self, node):
+    def _promote_node(self, node: int) -> None:
+        """
+        Promote a new node as leader
+
+        Args:
+            node (int): node to be elected
+        """
         logging.info(f"promoting node {node} to leader")
         self.node_election_id = node
         if self.node_election_id == self._device_id:
@@ -63,12 +72,20 @@ class Node:
         self.elections_started = False
         logging.info(f"node {node} has been promoted")
         logging.info(f"node_election_id = {self.node_election_id} | node_election_address = {self.node_election_address} | is_elected = {self.is_elected}")
-    def process_queue(self):
+    
+    def process_queue(self) -> None:
+        """
+        Queue processer for elected node 
+        """
         while True:
             data = self.message_queue.get()
             self._send_message(message=data)
 
-    def elect_new_leader(self):
+    def elect_new_leader(self) -> None:
+        """
+        Start a election for Election Ring Algorithm
+        """
+        
         if self.elections_started == False:
             logging.info("electing new leader")
             self.elections_started = True
@@ -81,7 +98,14 @@ class Node:
             logging.info(f"send election message: {message} to {custom_addr}")
             self._send_message(message=message, custom_addr=custom_addr)
 
-    def do_election(self, message):
+    def do_election(self, message: str) -> None:
+        """
+        Do the process of a election. Send a ELECTION message to actual node neighbour. 
+        When all neighbours has been reached, send a LEADER message to all other nodes, telling who is the new leader
+
+        Args:
+            message (str): message containing the voting list
+        """
         logging.info("Ongoing election")
         self.elections_started = True
         if self.node_election_id in self.node_list:
@@ -107,7 +131,7 @@ class Node:
                     message=message,
                     custom_addr=custom_addr
                 )
-                logging.info("node knows he is a leader")
+                logging.info(f"node {leader} knows he is a leader")
                 for node_id in voting_list:
                     if node_id != self._device_id and node_id != leader: 
                         custom_addr = (
@@ -126,22 +150,39 @@ class Node:
                         f"node-{next_node}", self.node_election_port)
                     logging.info(f"sending {sending_message} to {custom_addr}")
                     self._send_message(message=sending_message,custom_addr=custom_addr)
-    def _data_format(self, data: str):
+                    
+    def _data_format(self, data: str) -> Tuple[str,str]:
+        """Format recived message
+
+        Args:
+            data (str): Unformated message
+
+        Returns:
+            Tuple[str,str]: (message type, message)
+        """
+
         message_splited = data.split('>')
         return message_splited[0].replace('<', '').replace('>', '').replace(' ', ''), message_splited[1]
 
-    def init_node_server(self):
+    def init_node_server(self) -> None:
+        """
+        Start a listening server for the actual node. This server is waiting for three commands:
 
-        data_payload = 2048  # The maximum amount of data to be received at once
-        # Create a TCP socket
+            SAVE: If this node is a leader, it can save data on the main server. When this node receives a message, it will send it to a queue processor.
+            ELECTION: If this node receives this message, it will start an election step, attempting to find a neighboring node.
+            LEADER: If this node receives this message, it will set a new leader, using the message to set it.
+
+        """
+        data_payload = 2048  
+
         sock = socket.socket(socket.AF_INET,  socket.SOCK_STREAM)
-        # Enable reuse address/port
+
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        # Bind the socket to the port
+
         logging.info(
             f"Starting up echo server  on {self.node_address}")
         sock.bind(self.node_address)
-        # Listen to clients, argument specifies the max no. of queued connections
+
         sock.listen(5)
         while True:
             try:
@@ -157,47 +198,52 @@ class Node:
                 if data and message_type == 'ELECTION':
                     self.elections_started = True
                     self.do_election(message=message)
-                    sleep(5)
                 if data and message_type == 'LEADER' and self.elections_started == True:
                     self._promote_node(int(message))
-                    sleep(5)
                 client.send(data)
                 client.close()
             except Exception as err:
                 logging.error(traceback.format_exc())
                 logging.error(err)
 
-    def _send_message(self, message: str = '', custom_addr: Tuple[str, int] = ()):
-            logging.info("starting send message process")
-            # Create a TCP/IP socket
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(5.0)
-            try:
-                if self.is_elected:
-                    sock.connect(self.server_address)
-                elif len(custom_addr) > 0:
-                    sock.connect(custom_addr)
-                else:
-                    sock.connect(self.node_election_address)
-                # Send data
-                logging.info(f"Sending {message}")
-                sock.sendall(message.encode('utf-8'))
-                # Look for the response
-                amount_received = 0
-                amount_expected = len(message)
-                while amount_received < amount_expected:
-                    data = sock.recv(16)
-                    amount_received += len(data)  
-            except socket.error as err:
-                logging.error(f"Timeout: Tryed to send to:{sock.getsockname()} error: {str(err)}")
-                node.elect_new_leader()
-            except Exception as err:
-                logging.error(f"Other exception: {str(err)}")
-            finally:
-                logging.info("Closing connection to the server")
-                sock.close()
+    def _send_message(self, message: str = '', custom_addr: Tuple[str, int] = ()) -> None:
+        """
+        Send a message using a socket connection 
 
-    def message_spam(self):
+        Args:
+            message (str, optional): message to send. Defaults to ''.
+            custom_addr (Tuple[str, int], optional): (adress, port). Defaults to ().
+        """
+        logging.info("starting send message process")
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5.0)
+        try:
+            if self.is_elected:
+                sock.connect(self.server_address)
+            elif len(custom_addr) > 0:
+                sock.connect(custom_addr)
+            else:
+                sock.connect(self.node_election_address)
+            logging.info(f"Sending {message}")
+            sock.sendall(message.encode('utf-8'))
+            amount_received = 0
+            amount_expected = len(message)
+            while amount_received < amount_expected:
+                data = sock.recv(16)
+                amount_received += len(data)  
+        except socket.error as err:
+            logging.error(f"Timeout: Tryed to send to:{sock.getsockname()} error: {str(err)}")
+            node.elect_new_leader()
+        except Exception as err:
+            logging.error(f"Other exception: {str(err)}")
+        finally:
+            logging.info("Closing connection to the server")
+            sock.close()
+
+    def message_spam(self) -> None:
+        """
+            if this node is not the actual leader, span messages to the node leader
+        """
         if not self.is_elected and not self.elections_started :
             for _ in range(self._message_quantity):
                 message = f"<SAVE>device_id = {self._device_id} | hostname = {self._hostname} | ip = {self._IPAddr} | timestamp = {datetime.now()} | leader = {self.node_election_id}"
