@@ -43,7 +43,7 @@ class Server:
 
     def init_server(self) -> None:
         """
-            Init node server
+            Initialize a server that waits for data from a node and saves it to "logs.txt".
         """
 
         data_payload = 2048  
