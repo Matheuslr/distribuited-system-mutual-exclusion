@@ -81,7 +81,7 @@ class Node:
             data = self.message_queue.get()
             self._send_message(message=data)
 
-    def elect_new_leader(self) -> None:
+    def _elect_new_leader(self) -> None:
         """
         Start a election for Election Ring Algorithm
         """
@@ -98,7 +98,7 @@ class Node:
             logging.info(f"send election message: {message} to {custom_addr}")
             self._send_message(message=message, custom_addr=custom_addr)
 
-    def do_election(self, message: str) -> None:
+    def _do_election(self, message: str) -> None:
         """
         Do the process of a election. Send a ELECTION message to actual node neighbour. 
         When all neighbours has been reached, send a LEADER message to all other nodes, telling who is the new leader
@@ -197,7 +197,7 @@ class Node:
                     self.message_queue.put(message)
                 if data and message_type == 'ELECTION':
                     self.elections_started = True
-                    self.do_election(message=message)
+                    self._do_election(message=message)
                 if data and message_type == 'LEADER' and self.elections_started == True:
                     self._promote_node(int(message))
                 client.send(data)
@@ -205,7 +205,7 @@ class Node:
             except Exception as err:
                 logging.error(traceback.format_exc())
                 logging.error(err)
-
+                
     def _send_message(self, message: str = '', custom_addr: Tuple[str, int] = ()) -> None:
         """
         Send a message using a socket connection 
@@ -233,13 +233,13 @@ class Node:
                 amount_received += len(data)  
         except socket.error as err:
             logging.error(f"Timeout: Tryed to send to:{sock.getsockname()} error: {str(err)}")
-            node.elect_new_leader()
+            node._elect_new_leader()
         except Exception as err:
             logging.error(f"Other exception: {str(err)}")
         finally:
             logging.info("Closing connection to the server")
             sock.close()
-
+            
     def message_spam(self) -> None:
         """
             if this node is not the actual leader, span messages to the node leader
